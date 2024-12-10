@@ -1,21 +1,27 @@
 import { Response, Request } from "express";
 
-import { adminService } from "./admin.service";
 import pick from "../../shared/pick";
 import { adminFilterableFields } from "./admin.const";
+import sendResponse from "../../shared/sendResponse";
+import catchAsync from "../../shared/catchAsync";
+import { adminService } from "./admin.service";
 
-const getAllUserFromDb = async (req: Request, res: Response) => {
+const getAllFromDB = catchAsync(async (req: Request, res: Response) => {
+  // console.log(req.query)
   const filters = pick(req.query, adminFilterableFields);
-  const options = pick(req.query, ["limit", "page"]);
+  const options = pick(req.query, ["limit", "page", "sortBy", "sortOrder"]);
+  console.log(options);
   const result = await adminService.getAllUserFromDb(filters, options);
 
-  res.status(200).json({
+  sendResponse(res, {
+    statusCode: 200,
     success: true,
-    message: "all user retrived successfully",
-    data: result,
+    message: "Admin data fetched!",
+    meta: result.meta,
+    data: result.data,
   });
-};
+});
 
 export const adminController = {
-  getAllUserFromDb,
+  getAllFromDB,
 };

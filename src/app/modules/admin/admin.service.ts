@@ -1,31 +1,16 @@
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 import { adminSearchAbleFields } from "./admin.const";
-import { calculatePagination } from "../../helper/calculatePagination";
-
-const prisma = new PrismaClient();
-
-const getAllUserFromDb = async (params: any, options: any) => {
-  const andCondition = [];
-
-  const { page, limit, sortBy, sortOrder, skip } = calculatePagination(options);
-
+import prisma from "../../shared/Prisma";
+import { paginationHelper } from "../../helper/paginationHelper";
+const getAllUserFromDb = async (params, options) => {
+  const { page, limit, skip } = paginationHelper.calculatePagination(options);
   const { searchTerm, ...filterData } = params;
 
-  // {
-  //   name: {
-  //     contains: params.searchTerm,
-  //   },
-  // },
-  // {
-  //   email: {
-  //     contains: params.searchTerm,
-  //   },
-  // },
+  const andCondions: Prisma.AdminWhereInput[] = [];
 
-  // filter for specifics fields
-
+  //console.log(filterData);
   if (params.searchTerm) {
-    andCondition.push({
+    andCondions.push({
       OR: adminSearchAbleFields.map((field) => ({
         [field]: {
           contains: params.searchTerm,
@@ -36,38 +21,47 @@ const getAllUserFromDb = async (params: any, options: any) => {
   }
 
   if (Object.keys(filterData).length > 0) {
-    andCondition.push({
+    andCondions.push({
       AND: Object.keys(filterData).map((key) => ({
         [key]: {
-          equals: filterData[key],
+          equals: (filterData as any)[key],
         },
       })),
     });
   }
 
-  const whereCondition: AdminWhereInput = { AND: andCondition };
-  //console.dir(whereCondition, { depth: "inifinity" });
-  try {
-    const result = await prisma.admin.findMany({
-      where: whereCondition,
-      skip,
-      take: limit,
-      orderBy:
-        options.sortBy && options.orderBy
-          ? {
-              [options.sortBy]: [options.orderBy],
-            }
-          : {
-              createdAt: "desc",
-            },
-    });
-    return result;
-  } catch (error) {
-    console.error("Error fetching users:", error);
-    throw error;
-  } finally {
-    await prisma.$disconnect(); // Clean up Prisma connection
-  }
+  andCondions.push({
+    isDeleted: false,
+  });
+
+  //console.dir(andCondions, { depth: 'inifinity' })
+  const whereConditons: Prisma.AdminWhereInput = { AND: andCondions };
+
+  const result = await prisma.admin.findMany({
+    where: whereConditons,
+    skip,
+    take: limit,
+    orderBy:
+      options.sortBy && options.sortOrder
+        ? {
+            [options.sortBy]: options.sortOrder,
+          }
+        : {
+            createdAt: "desc",
+          },
+  });
+  const total = await prisma.admin.count({
+    where: whereConditons,
+  });
+
+  return {
+    meta: {
+      page,
+      limit,
+      total,
+    },
+    data: result,
+  };
 };
 
 export const adminService = {
