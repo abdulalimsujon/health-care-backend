@@ -3,7 +3,6 @@ import bcrypt from "bcrypt";
 import prisma from "../../shared/Prisma";
 
 const createAdmin = async (data: any) => {
-  console.log(data);
   const hashedPassword = await bcrypt.hash(data.password, 12);
   const userData = {
     email: data.admin.email,
